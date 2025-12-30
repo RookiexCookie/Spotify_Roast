@@ -24,7 +24,7 @@ function generateSpherePoints(count: number, radius: number) {
 }
 
 function Stars(props: any) {
-  const ref = useRef<any>();
+  const ref = useRef<any>(null);
   // Generate 5000 points safely
   const [sphere] = useState(() => generateSpherePoints(5000, 1.5));
 

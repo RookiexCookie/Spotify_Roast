@@ -257,7 +257,7 @@ const handleRoast = async () => {
     setScore(null);
 
     try {
-      const headers = { Authorization: `Bearer ${(session as any).accessToken}` };
+      const headers = { Authorization: `Bearer ${session.accessToken}` };
       let allItems: any[] = [];
 
       if (mode === 'user') {
