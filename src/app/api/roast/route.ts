@@ -196,7 +196,7 @@ Begin.
         },
         body: JSON.stringify({
           // You can use "google/gemini-flash-1.5" or "meta-llama/llama-3.1-8b-instruct:free"
-          model: "openai/gpt-oss-120b:free", 
+          model: "nex-agi/deepseek-v3.1-nex-n1:free", 
           messages: [
             { role: "user", content: prompt }
           ],
