@@ -130,10 +130,10 @@ export async function POST(req: Request) {
     // 2. ATTEMPT 1: GOOGLE GEMINI SDK
     try {
       // Recommended stable version
-      // const model = genAI.getGenerativeModel({
-      //   model: "gemini-2.5-flash",
-      //   generationConfig: { responseMimeType: "application/json" },
-      // });
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        generationConfig: { responseMimeType: "application/json" },
+      });
 
       const result = await model.generateContent(prompt);
       generatedText = result.response.text();
@@ -147,10 +147,7 @@ export async function POST(req: Request) {
       if (!process.env.OPENROUTER_KEY) {
         throw new Error("Gemini failed and OPENROUTER_KEY is missing.");
       }
-      console.log(
-        "DEBUG KEY:",
-        process.env.OPENROUTER_KEY ? "Loaded" : "Missing",
-      );
+
       const openRouterResponse = await fetch(
         "https://openrouter.ai/api/v1/chat/completions",
         {
