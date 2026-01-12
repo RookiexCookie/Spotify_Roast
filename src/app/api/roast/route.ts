@@ -42,7 +42,7 @@ export async function POST(req: Request) {
 
     VOICE & ENERGY (LOCK THIS IN):
     - Hinglish-heavy, Indian internet tone
-    - Chaotic but controlled
+    - Chaotic
     - Observational, not descriptive
     - Sounds like someone roasting quietly in a group chat
     - “Bhai tu khud sun, samajh aa jayega” energy
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     2. What delusion are they feeding themselves with this?
     3. What situation are they imagining themselves in while this plays?
     4. Why would they feel attacked reading this?
-
+    always attack them openly with clever humor
     Then compress it into **1–2 sentences**.
 
     ---
@@ -79,15 +79,7 @@ export async function POST(req: Request) {
 
     For EACH item:
     - you may Pick ONE fantasy the listener believes (hero arc, sad protagonist, gym beast, night rider, misunderstood genius, etc.)
-    - you may Pick ONE Indian scenario:
-      gym / hostel / late-night bike ride / metro / reels scroll / breakup / corporate burnout / 2am overthinking
-    - you may Expose the gap between fantasy and reality
-
-    Examples of the REQUIRED ENERGY (DO NOT COPY):
-
-    - “Isko sunte waqt tum khudko hero samajhne lagte ho, jabki reality mein bas headphones lagake responsibilities avoid ho rahi hoti hain.”
-    - “Ye gaana music kam, tumhare ‘main different hoon bro’ delusion ka background score zyada lagta hai.”
-    - “Tum isko sunte nahi ho, tum apni personality ko temporarily borrow karte ho.”
+    - you must Expose the gap between fantasy and reality and the user delusion
 
     ---
 
@@ -129,6 +121,7 @@ export async function POST(req: Request) {
 
     Do not soften.
     Do not apologize.
+    openly offend but do it with clever humor
     Begin.
     `;
 
@@ -136,12 +129,11 @@ export async function POST(req: Request) {
 
     // 2. ATTEMPT 1: GOOGLE GEMINI SDK
     try {
-      // Note: "gemini-2.5-flash" might not exist yet, defaulting to 1.5-flash for stability
-      // If you have access to 2.0 or experimental models, update the string.
-      const model = genAI.getGenerativeModel({
-        model: "gemini-.5-flash",
-        generationConfig: { responseMimeType: "application/json" },
-      });
+      // Recommended stable version
+      // const model = genAI.getGenerativeModel({
+      //   model: "gemini-2.5-flash",
+      //   generationConfig: { responseMimeType: "application/json" },
+      // });
 
       const result = await model.generateContent(prompt);
       generatedText = result.response.text();
@@ -152,22 +144,25 @@ export async function POST(req: Request) {
       );
 
       // 3. ATTEMPT 2: OPENROUTER FALLBACK
-      if (!process.env.OPENROUTER_API_KEY) {
-        throw new Error("Gemini failed and OPENROUTER_API_KEY is missing.");
+      if (!process.env.OPENROUTER_KEY) {
+        throw new Error("Gemini failed and OPENROUTER_KEY is missing.");
       }
-
+      console.log(
+        "DEBUG KEY:",
+        process.env.OPENROUTER_KEY ? "Loaded" : "Missing",
+      );
       const openRouterResponse = await fetch(
         "https://openrouter.ai/api/v1/chat/completions",
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            Authorization: `Bearer ${process.env.OPENROUTER_KEY}`,
             "Content-Type": "application/json",
             "HTTP-Referer": "https://roast-my-spotify.com", // Optional: Your site URL
           },
           body: JSON.stringify({
             // You can use "google/gemini-flash-1.5" or "meta-llama/llama-3.1-8b-instruct:free"
-            model: "nex-agi/deepseek-v3.1-nex-n1:free",
+            model: "xiaomi/mimo-v2-flash:free",
             messages: [{ role: "user", content: prompt }],
             response_format: { type: "json_object" }, // Helps ensure JSON output
           }),
