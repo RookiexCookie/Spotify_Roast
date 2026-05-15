@@ -205,6 +205,31 @@ const SkeletonCard = ({ theme }: { theme: any }) => (
     <div className="absolute inset-0 border border-white/5 rounded-3xl" />
   </div>
 );
+// --- CREATOR CREDIT COMPONENT ---
+const CreatorCredit = ({ theme }: { theme: any }) => (
+  <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 group">
+    <div className={`
+      flex items-center gap-2 px-4 py-2 rounded-full 
+      bg-white/5 backdrop-blur-md border ${theme.cardBorder} 
+      transition-all duration-500 ease-in-out
+      w-12 h-12 group-hover:w-auto group-hover:px-6
+      overflow-hidden shadow-lg
+      ${theme.cardHover.replace('hover:', '')}
+    `}>
+      <span className="text-xl flex-shrink-0">🚀</span>
+      <span className={`
+        whitespace-nowrap font-bold text-sm tracking-wide
+        transition-all duration-500 delay-100
+        opacity-0 group-hover:opacity-100 
+        translate-x-4 group-hover:translate-x-0
+        ${theme.accent}
+      `}>
+        Built by <span className="text-white">RookiexCookie</span>
+      </span>
+    </div>
+  </div>
+);
+
 export default function Home() {
   const { data: session } = useSession();
   const [roastData, setRoastData] = useState<any[]>([]);
@@ -552,6 +577,9 @@ const handleRoast = async () => {
           </div>
         )}
       </div>
+
+      {/* Creator Credit Floating Button */}
+      <CreatorCredit theme={theme} />
     </main>
   );
 }
