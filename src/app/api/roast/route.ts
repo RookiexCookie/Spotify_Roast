@@ -127,25 +127,10 @@ export async function POST(req: Request) {
 
     let generatedText = "";
 
-    // 2. ATTEMPT 1: GOOGLE GEMINI SDK
+    // 1. ATTEMPT 1: OPENROUTER (Now Primary)
     try {
-      // Recommended stable version
-      const model = genAI.getGenerativeModel({
-        model: "gemini-2.5-flash",
-        generationConfig: { responseMimeType: "application/json" },
-      });
-
-      const result = await model.generateContent(prompt);
-      generatedText = result.response.text();
-    } catch (geminiError: any) {
-      console.warn(
-        "⚠️ Gemini SDK Failed (likely 429). Attempting OpenRouter Fallback...",
-        geminiError.message,
-      );
-
-      // 3. ATTEMPT 2: OPENROUTER FALLBACK
       if (!process.env.OPENROUTER_KEY) {
-        throw new Error("Gemini failed and OPENROUTER_KEY is missing.");
+        throw new Error("OPENROUTER_KEY is missing.");
       }
 
       const openRouterResponse = await fetch(
@@ -155,29 +140,45 @@ export async function POST(req: Request) {
           headers: {
             Authorization: `Bearer ${process.env.OPENROUTER_KEY}`,
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://roast-my-spotify.com", // Optional: Your site URL
+            "HTTP-Referer": "https://roast-my-spotify.com",
           },
           body: JSON.stringify({
-            // You can use "google/gemini-flash-1.5" or "meta-llama/llama-3.1-8b-instruct:free"
-            model: "xiaomi/mimo-v2-flash:free",
+            model: "z-ai/glm-4.5-air:free",
             messages: [{ role: "user", content: prompt }],
-            response_format: { type: "json_object" }, // Helps ensure JSON output
+            response_format: { type: "json_object" },
           }),
         },
       );
 
       if (!openRouterResponse.ok) {
         const errorText = await openRouterResponse.text();
-        throw new Error(
-          `OpenRouter Failed: ${openRouterResponse.status} - ${errorText}`,
-        );
+        throw new Error(`OpenRouter Failed: ${openRouterResponse.status} - ${errorText}`);
       }
 
       const openRouterJson = await openRouterResponse.json();
       generatedText = openRouterJson.choices?.[0]?.message?.content || "";
+    } catch (openRouterError: any) {
+      console.warn(
+        "⚠️ OpenRouter Failed. Attempting Gemini SDK Fallback...",
+        openRouterError.message,
+      );
+
+      // 2. ATTEMPT 2: GOOGLE GEMINI SDK (Now Fallback)
+      try {
+        const model = genAI.getGenerativeModel({
+          model: "gemini-3.1-flash-preview",
+          generationConfig: { responseMimeType: "application/json" },
+        });
+
+        const result = await model.generateContent(prompt);
+        generatedText = result.response.text();
+      } catch (geminiError: any) {
+        console.error("Critical: Both AI providers failed.", geminiError.message);
+        throw new Error("Both AI providers failed to generate content.");
+      }
     }
 
-    // 4. PARSE & RETURN
+    // 3. PARSE & RETURN
     if (!generatedText) {
       throw new Error("No content generated from either provider.");
     }

@@ -509,7 +509,7 @@ const handleRoast = async () => {
             {loading ? (
               <ScoreSkeleton theme={theme} />
             ) : score ? (
-              <div className="text-center mb-20 relative animate-in fade-in slide-in-from-bottom-8 duration-700">
+              <div className="text-center mb-16 relative animate-in fade-in slide-in-from-bottom-8 duration-700">
                 <div className="inline-block relative">
                    <h2 className={`text-[10rem] leading-none font-black text-transparent bg-clip-text bg-gradient-to-b ${theme.score} drop-shadow-2xl`}>
                     {score}
@@ -517,6 +517,15 @@ const handleRoast = async () => {
                   <span className={`absolute top-4 -right-8 text-4xl font-bold ${theme.accent} rotate-12 opacity-80`}>/100</span>
                 </div>
                 <p className={`${theme.accent} uppercase tracking-[0.3em] mt-4 font-bold text-lg`}>Basic Score Detected</p>
+                
+                {/* NEW: Overall Playlist Roast Summary */}
+                {playlistRoast && (
+                  <div className="max-w-2xl mx-auto mt-8 p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+                    <p className="text-xl md:text-2xl font-medium italic text-gray-200">
+                      "{playlistRoast}"
+                    </p>
+                  </div>
+                )}
               </div>
             ) : null}
 

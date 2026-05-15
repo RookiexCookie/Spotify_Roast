@@ -4,7 +4,7 @@ import SpotifyProvider from "next-auth/providers/spotify";
 // Helper function to refresh the token
 async function refreshAccessToken(token: any) {
   try {
-    const url = "https://developer.spotify.com/documentation/web-api/concepts/apps3";
+    const url = "https://accounts.spotify.com/api/token";
     
     // Spotify requires a specific encoding for the refresh call
     const basicAuth = Buffer.from(`${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`).toString('base64');
