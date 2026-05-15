@@ -127,55 +127,21 @@ export async function POST(req: Request) {
 
     let generatedText = "";
 
-    // 1. ATTEMPT 1: OPENROUTER (Now Primary)
+    // USE GOOGLE GEMINI SDK
     try {
-      if (!process.env.OPENROUTER_KEY) {
-        throw new Error("OPENROUTER_KEY is missing.");
-      }
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash", // Using stable flash model
+        generationConfig: { responseMimeType: "application/json" },
+      });
 
-      const openRouterResponse = await fetch(
-        "https://openrouter.ai/api/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.OPENROUTER_KEY}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://roast-my-spotify.com",
-          },
-          body: JSON.stringify({
-            model: "z-ai/glm-4.5-air:free",
-            messages: [{ role: "user", content: prompt }],
-            response_format: { type: "json_object" },
-          }),
-        },
+      const result = await model.generateContent(prompt);
+      generatedText = result.response.text();
+    } catch (geminiError: any) {
+      console.error(
+        "Critical: Gemini AI provider failed.",
+        geminiError.message,
       );
-
-      if (!openRouterResponse.ok) {
-        const errorText = await openRouterResponse.text();
-        throw new Error(`OpenRouter Failed: ${openRouterResponse.status} - ${errorText}`);
-      }
-
-      const openRouterJson = await openRouterResponse.json();
-      generatedText = openRouterJson.choices?.[0]?.message?.content || "";
-    } catch (openRouterError: any) {
-      console.warn(
-        "⚠️ OpenRouter Failed. Attempting Gemini SDK Fallback...",
-        openRouterError.message,
-      );
-
-      // 2. ATTEMPT 2: GOOGLE GEMINI SDK (Now Fallback)
-      try {
-        const model = genAI.getGenerativeModel({
-          model: "gemini-3.1-flash-preview",
-          generationConfig: { responseMimeType: "application/json" },
-        });
-
-        const result = await model.generateContent(prompt);
-        generatedText = result.response.text();
-      } catch (geminiError: any) {
-        console.error("Critical: Both AI providers failed.", geminiError.message);
-        throw new Error("Both AI providers failed to generate content.");
-      }
+      throw new Error("Gemini AI provider failed to generate content.");
     }
 
     // 3. PARSE & RETURN

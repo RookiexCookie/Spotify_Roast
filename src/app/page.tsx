@@ -521,8 +521,8 @@ const handleRoast = async () => {
                 </div>
                 <p className={`${theme.accent} uppercase tracking-[0.3em] mt-4 font-bold text-lg`}>Basic Score Detected</p>
                 
-                {/* NEW: Overall Playlist Roast Summary */}
-                {playlistRoast && (
+                {/* NEW: Overall Playlist Roast Summary (Only for Playlist Mode) */}
+                {playlistRoast && mode === 'playlist' && (
                   <div className="max-w-2xl mx-auto mt-8 p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
                     <p className="text-xl md:text-2xl font-medium italic text-gray-200">
                       "{playlistRoast}"
