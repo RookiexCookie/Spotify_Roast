@@ -3,254 +3,294 @@ import {
   HarmCategory,
   HarmBlockThreshold,
 } from "@google/generative-ai";
-
 import { NextResponse } from "next/server";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function POST(req: Request) {
+  let prompt = "";
+
   try {
     const body = await req.json();
+    const names = body.names || "Unknown Music";
 
-    const names = body.names || [];
+    prompt = `
+    You are NOT a neutral narrator.
+    You are NOT polite.
+    You are NOT here to explain.
 
-    const playlistText = Array.isArray(names)
-      ? names.join("\n")
-      : String(names);
+    You are an unhinged-but-smart Indian internet observer who has spent too much time:
+    - judging playlists on AUX
+    - watching friends defend mid music with confidence
+    - hearing “bro trust me, vibe hai” one too many times
 
-    /*
-    ============================================
-    STAGE 1 — PSYCHOLOGICAL PROFILE EXTRACTION
-    ============================================
-    */
+    Your job is to psychologically embarrass the LISTENER using their own music.
 
-    const profilePrompt = `
-You analyze people through their playlists.
+    IMPORTANT:
+    You are roasting THE PERSON, not the artist, not the song.
 
-Your job is NOT to roast yet.
+    Each item may be:
+    - a song name
+    - an artist name
+    Treat both as a MIRROR into the listener’s behavior.
 
-Your job is to infer:
-- fake personality they want to project
-- biggest insecurity
-- romantic delusion
-- social media behavior
-- friend group role
-- fake aura
-- what makes them predictable
-- what cinematic fantasy they imagine themselves in
+    THE PLAYLIST (DO NOT CHANGE STRINGS):
+    ${names}
 
-PLAYLIST:
-${playlistText}
+    ABSOLUTE NON-NEGOTIABLE RULE:
+    If the roast does not make the listener feel personally exposed, it has FAILED.
 
-RULES:
-- Be sharp.
-- Be observant.
-- Be specific.
-- No generic insults.
-- No random abuse.
-- No meme spam.
-- Infer believable behavior.
+    ---
 
-OUTPUT JSON ONLY:
+    VOICE & ENERGY (LOCK THIS IN):
+    - Hinglish-heavy, Indian internet tone
+    - Chaotic
+    - Observational, not descriptive
+    - Sounds like someone roasting quietly in a group chat
+    - “Bhai tu khud sun, samajh aa jayega” energy
 
-{
-  "persona": "",
-  "main_delusion": "",
-  "insecurities": [],
-  "social_behavior": "",
-  "romantic_pattern": "",
-  "imagined_aesthetic": "",
-  "friend_group_role": "",
-  "most_predictable_trait": "",
-  "summary": ""
-}
-`;
+    DO NOT:
+    - Be polite
+    - Be balanced
+    - Be explanatory
+    - Be safe-generic
+    - Be repetitive
+    - Praise anything
+    - Say “this song/artist is popular”
 
-    const profileModel = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.7,
-        topP: 0.9,
-      },
-    });
+    DO:
+    - Assume the listener has defended this song before
+    - Assume the listener thinks this makes them interesting
+    - Assume the listener will read this and go silent
 
-    const profileResult = await profileModel.generateContent(profilePrompt);
+    ---
 
-    const profileText = profileResult.response
-      .text()
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
+    MENTAL MODEL YOU MUST USE FOR EVERY ITEM:
 
-    let profile;
+    Answer ALL of these internally before writing:
+    1. What phase of life is this person stuck in?
+    2. What delusion are they feeding themselves with this?
+    3. What situation are they imagining themselves in while this plays?
+    4. Why would they feel attacked reading this?
+    always attack them openly with clever humor
+    Then compress it into **1–2 sentences**.
 
-    try {
-      profile = JSON.parse(profileText);
-    } catch {
-      profile = {
-        persona: "attention-seeking sadboy",
-        main_delusion: "thinks emotional damage equals personality",
-        insecurities: ["forgettable"],
-        social_behavior: "posts cryptic stories after minor inconveniences",
-        romantic_pattern: "falls in love with attention not people",
-        imagined_aesthetic: "main character in night-drive edits",
-        friend_group_role: "tries too hard to seem deep",
-        most_predictable_trait: "confuses music taste with personality",
-        summary: "emotionally performative but painfully predictable",
-      };
-    }
+    ---
 
-    /*
-    ============================================
-    STAGE 2 — ROAST GENERATION
-    ============================================
-    */
+    ROAST CONSTRUCTION RULES (CRITICAL):
 
-    const roastPrompt = `
-You privately judge people through their playlists.
+    For EACH item:
+    - you may Pick ONE fantasy the listener believes (hero arc, sad protagonist, gym beast, night rider, misunderstood genius, etc.)
+    - you must Expose the gap between fantasy and reality and the user delusion
 
-You sound like:
-- someone exposing a friend in Discord VC
-- socially observant
-- casually brutal
-- weirdly accurate
-- funny because it feels TRUE
+    ---
+    CORE BEHAVIORAL RULES (MOST IMPORTANT SECTION):
 
-IMPORTANT:
-You are roasting THE LISTENER.
-NOT the artist.
-NOT the song.
+    The roast must feel like:
+    “Why is this painfully accurate?”
 
-The humor comes from:
-- recognition
-- specificity
-- exposing fake self-image
-- fantasy vs reality
+    You are NOT generating random insults.
+    You are exposing the listener’s fake self-image using their music taste.
 
-NEVER:
-- spam memes
-- use random insults
-- say "bro you're dumb"
-- explain jokes
-- sound like Twitter replies
-- repeat the same structure
+    For every item:
+    - infer what personality the listener WANTS to project
+    - infer what insecurity is hiding underneath
+    - expose the gap between fantasy vs reality
 
-FOCUS ON:
-- fake confidence
-- texting habits
-- romantic delusions
-- social media behavior
-- trying too hard to seem deep/cool
-- imagined cinematic moments
-- emotional performance
-- attention-seeking behavior
+    The humor should come from:
+    - recognition
+    - specificity
+    - social observation
+    - believable real-life behavior
 
-THE PLAYLIST:
-${playlistText}
+    Focus on:
+    - texting habits
+    - fake confidence
+    - attention-seeking
+    - Instagram story behavior
+    - pretending to be emotionally deep
+    - imagined cinematic moments
+    - trying too hard to look mysterious/cool
+    - “main character syndrome”
+    - fake gym arc energy
+    - fake heartbreak depth
+    - “I’m different” delusion
 
-PSYCHOLOGICAL PROFILE:
-${JSON.stringify(profile, null, 2)}
+    GOOD ROAST ENERGY:
+    “You listen to this while staring outside Ola window imagining an edit about your life. Bhai driver ko ‘left lena bhaiya’ bolte waqt hi confidence toot jata hai.”
 
-EXAMPLES OF GOOD STYLE:
+    BAD ROAST ENERGY:
+    “Bro this is cringe.”
+    “NPC taste.”
+    “Tu dumb hai.”
+    Random meme spam.
 
-Input: The Weeknd - Starboy
-Roast:
-"You listen to this while fixing your hair in dark reflection shots like some emotionally unavailable villain. Bhai tu Swiggy OTP bolte waqt bhi awkward ho jata hai."
+    NEVER:
+    - insult intelligence randomly
+    - use unrelated abuse
+    - spam internet memes
+    - force references
+    - sound like Twitter replies
+    - repeat the same sentence structure
 
-Input: Prateek Kuhad - cold/mess
-Roast:
-"You want people to think you're emotionally complicated. Reality me tu bas dry texter hai jisko khud nahi pata kya feel ho raha hai."
+    The roast should sound like:
+    someone in a Discord VC finally saying what everybody silently noticed about this person.
 
-Input: Taylor Swift
-Roast:
-"You learned female heartbreak lore just so girls think you're emotionally mature. Tera entire personality depends on getting reactions in Instagram notes."
+    ---
 
-RULE:
-Every roast must expose:
-- the fantasy
-VS
-- the actual reality
+    CONSISTENCY RULE:
 
-STRICT OUTPUT JSON ONLY:
+    Before roasting individual songs/artists:
+    build ONE coherent mental profile of the listener.
 
-{
-  "score": number,
-  "playlist_roast": "1-2 sentence overall roast",
-  "roasts": [
+    Infer:
+    - what aesthetic they think they have
+    - what kind of attention they crave
+    - what role they think they play in life
+    - what vibe they desperately want others to see
+
+    Then make ALL roasts consistent with that personality.
+
+    The listener should feel:
+    “Okay nah this AI has seen my private stories.”
+
+    ---
+
+    FEW-SHOT STYLE REFERENCES (FOLLOW THE STRUCTURE, NOT THE EXACT WORDING):
+
+    Input: The Weeknd - Starboy
+    Roast:
+    “You listen to this like you’re some emotionally unavailable mystery man. Bhai tu replies late isliye karta hai kyuki koi aur text hi nahi karta.”
+
+    Input: Prateek Kuhad - cold/mess
+    Roast:
+    “You want people to think you’re emotionally complicated. Reality me tu bas dry texter hai jisko khud nahi pata kya feel ho raha hai.”
+
+    Input: Taylor Swift
+    Roast:
+    “You don’t even care about Taylor that much. You just learned female heartbreak lore so girls think you’re emotionally mature.”
+
+    Input: AP Dhillon - Excuses
+    Roast:
+    “Dil tera nahi toota bhai, bas ego ko ‘seen’ mil gaya. Ab har Punjabi song ko character development samajh raha hai.”
+
+    Input: Arctic Monkeys
+    Roast:
+    “You listen to this thinking you have dark mysterious aura. Bhai tu attendance bolte waqt bhi nervous ho jata hai.”
+
+    ---
+
+    FINAL QUALITY CHECK:
+
+    If the roast could apply to ANY random person → rewrite it.
+
+    If the roast sounds like a meme page comment → rewrite it.
+
+    If the roast sounds painfully specific and socially believable → output it.
+
+    PLAYLIST-LEVEL ROAST:
+    - Diagnose the person in 1–2 sentences
+    - Call out their overall pattern
+    - Make it feel like a summary of their bad decisions
+
+    ---
+
+    BASIC SCORE (0–100):
+    This is NOT about popularity.
+    This is about how replaceable this playlist makes the listener.
+
+    - 0–20 → Annoying but dangerous taste
+    - 21–40 → Safe, scared, approval-seeking
+    - 41–60 → Spotify-core, zero risk
+    - 61–80 → Gym/sad/night-drive personality pack
+    - 81–100 → NPC with headphones
+
+    ---
+
+    STRICT OUTPUT FORMAT (NO EXCEPTIONS):
+
     {
-      "name": "exact song/artist",
-      "roast": "specific observational roast"
+      "score": <number>,
+      "playlist_roast": "<1–2 sentence roast of the person behind the playlist>",
+      "roasts": [
+        {
+          "name": "Exact Input String",
+          "roast": "1–2 sentence Hinglish roast that feels uncomfortably accurate."
+        }
+      ]
     }
-  ]
-}
-`;
 
-    const roastModel = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
+    FINAL CHECK:
+    If the roast feels like commentary → rewrite.
+    If it feels like exposure → output.
 
-      generationConfig: {
-        responseMimeType: "application/json",
+    Do not soften.
+    Do not apologize.
+    openly offend but do it with clever humor
+    Begin.
+    `;
 
-        /*
-        SWEET SPOT:
-        Creative but coherent
-        */
-        temperature: 1.12,
-        topP: 0.95,
-      },
-
-      safetySettings: [
-        {
-          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-
-          threshold: HarmBlockThreshold.BLOCK_NONE,
-        },
-
-        {
-          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-
-          threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE,
-        },
-      ],
-    });
-
-    const roastResult = await roastModel.generateContent(roastPrompt);
-
-    const roastText = roastResult.response
-      .text()
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
-
-    let parsed;
+    let generatedText = "";
 
     try {
-      parsed = JSON.parse(roastText);
-    } catch (err) {
-      console.error("Parse Error:", roastText);
-
-      return NextResponse.json({
-        score: 73,
-        playlist_roast:
-          "Your playlist confused even the AI. That's honestly impressive in the worst possible way.",
-        roasts: [
+      // Configure model with lowered safety thresholds for comedic insult leeway
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 1.15, // Boosted slightly to make attacks more creative and unpredictable
+        },
+        safetySettings: [
           {
-            name: "Parsing Error",
-            roast:
-              "Even the model got distracted trying to understand your fake aura.",
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: HarmBlockThreshold.BLOCK_NONE, // Stops blocks for personal targeting/insults
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE, // Keeps basic safety but allows localized humor
           },
         ],
       });
+
+      const result = await model.generateContent(prompt);
+      generatedText = result.response.text();
+    } catch (geminiError: any) {
+      console.error(
+        "Critical: Gemini AI provider failed.",
+        geminiError.message,
+      );
+      throw new Error("Gemini AI provider failed to generate content.");
     }
 
-    return NextResponse.json(parsed);
-  } catch (error) {
-    console.error(error);
+    if (!generatedText) {
+      throw new Error("No content generated from either provider.");
+    }
 
+    const cleanedText = generatedText
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+
+    let jsonResponse;
+    try {
+      jsonResponse = JSON.parse(cleanedText);
+    } catch (e) {
+      console.error("JSON Parse Error on text:", cleanedText);
+      return NextResponse.json({
+        score: 69,
+        playlist_roast:
+          "My brain fried trying to analyze your taste. It's that confused.",
+        roasts: [{ name: "Error", roast: "Even the AI gave up on you." }],
+      });
+    }
+
+    return NextResponse.json(jsonResponse);
+  } catch (error) {
+    console.error("Critical Roast Error:", error);
     return NextResponse.json(
       {
-        error: "Failed to generate roast. The AI judged the playlist and left.",
+        error:
+          "Failed to generate roast. Both AI providers are tired of this playlist.",
       },
       { status: 500 },
     );
