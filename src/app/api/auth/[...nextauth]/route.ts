@@ -55,7 +55,7 @@ const handler = NextAuth({
     }),
   ],
 callbacks: {
-    async jwt({ token, account, user }) {
+    async jwt({ token, account, user }: any) {
       // 1. Initial Sign In
       if (account && user) {
         return {

@@ -210,6 +210,7 @@ export default function Home() {
   const [roastData, setRoastData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [score, setScore] = useState<number | null>(null);
+  const [playlistRoast, setPlaylistRoast] = useState<string | null>(null);
   const [currentTheme, setCurrentTheme] = useState<ThemeKey>("neon");
   const [showThemes, setShowThemes] = useState(false);
   
@@ -255,6 +256,7 @@ const handleRoast = async () => {
     setLoading(true);
     setRoastData([]);
     setScore(null);
+    setPlaylistRoast(null);
 
     try {
       const headers = { Authorization: `Bearer ${session.accessToken}` };
@@ -345,6 +347,7 @@ const handleRoast = async () => {
       });
 
       setScore(data.score);
+      setPlaylistRoast(data.playlist_roast);
       setRoastData(finalRoast);
 
     } catch (error) {
@@ -461,7 +464,7 @@ const handleRoast = async () => {
                   type="text" 
                   placeholder="Paste Spotify Playlist Link here..." 
                   value={playlistUrl}
-                  onChange={(e) => setPlaylistUrl(e.target.value)}
+                  onChange={(e: any) => setPlaylistUrl(e.target.value)}
                   className={`w-full bg-white/5 backdrop-blur-xl border ${theme.cardBorder} rounded-xl px-6 py-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 ring-opacity-50 ${theme.accent.replace('text', 'ring')}`}
                 />
               </div>
@@ -539,7 +542,7 @@ const handleRoast = async () => {
                     </div>
                   ))
                 : // Render Real Cards
-                  roastData.map((item, index) => (
+                  roastData.map((item: any, index: number) => (
                      <div key={index} className="animate-in fade-in slide-in-from-bottom-8 duration-700" style={{ animationDelay: `${index * 100}ms` }}>
                        <TiltCard item={item} theme={theme} />
                      </div>
