@@ -434,23 +434,32 @@ export default function Home() {
       // --- MERGE DATA FOR CARDS ---
       let finalRoast: any[] = [];
       if (Array.isArray(data.roasts) && data.roasts.length > 0) {
-        finalRoast = data.roasts.map((roastItem: any) => {
-          const original = allItems.find(
-            (item) =>
-              item.name.toLowerCase().includes(roastItem.name?.toLowerCase()) ||
-              roastItem.name?.toLowerCase().includes(item.name.toLowerCase()),
+        finalRoast = allItems.map((item) => {
+          const match = data.roasts.find(
+            (r: any) =>
+              item.name.toLowerCase().includes(r.name?.toLowerCase()) ||
+              r.name?.toLowerCase().includes(item.name.toLowerCase()) ||
+              (item.artist &&
+                r.name?.toLowerCase().includes(item.artist?.toLowerCase())) ||
+              (item.artist &&
+                item.artist?.toLowerCase().includes(r.name?.toLowerCase())),
           );
           return {
-            name: roastItem.name,
-            roast: roastItem.roast,
-            image: original?.image || "",
+            name: item.name,
+            roast:
+              match?.roast ||
+              data.playlist_roast ||
+              "Your music taste has officially left the chat.",
+            image: item.image || "",
           };
         });
       } else {
         // Fallback cards using all items detected
         finalRoast = allItems.map((item: any) => ({
           name: item.name,
-          roast: "Targeted by the music critic in this roast session.",
+          roast:
+            data.playlist_roast ||
+            "Your music taste has officially left the chat.",
           image: item.image || "",
         }));
       }
@@ -716,18 +725,10 @@ export default function Home() {
                   Basic Score Detected
                 </p>
 
-                {/* Savage Music Critic Verdict */}
-                {playlistRoast && (
-                  <div className="max-w-3xl mx-auto mt-8 p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl text-left">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="text-xl">🔥</span>
-                      <span
-                        className={`text-xs font-extrabold uppercase tracking-widest ${theme.accent}`}
-                      >
-                        CRITIC&apos;S VERDICT
-                      </span>
-                    </div>
-                    <p className="text-lg md:text-xl font-medium leading-relaxed italic text-gray-200 whitespace-pre-line">
+                {/* NEW: Overall Playlist Roast Summary (Only for Playlist Mode) */}
+                {playlistRoast && mode === "playlist" && (
+                  <div className="max-w-2xl mx-auto mt-8 p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+                    <p className="text-xl md:text-2xl font-medium italic text-gray-200">
                       &quot;{playlistRoast}&quot;
                     </p>
                   </div>

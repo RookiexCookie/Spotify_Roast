@@ -8,8 +8,21 @@ const MODEL_NAME =
   process.env.AI_MODEL || "Llama-3.2-3B-Instruct-abliterated";
 const API_KEY = process.env.OPENAI_API_KEY || "not-needed";
 
-const SYSTEM_PROMPT =
-  "You are a ruthless, elitist, and unfiltered music critic. Analyze the user's Spotify listening data provided in JSON format. Deliver a savage, sarcastic, and highly specific roast targeting their top artists, tracks, and genre habits. Do not hold back, do not apologize, and do not provide generic compliments.";
+const SYSTEM_PROMPT = `You are a ruthless, elitist, and unfiltered music critic. Analyze the user's Spotify listening data provided in JSON format. Deliver a savage, sarcastic, and highly specific roast targeting their top artists, tracks, and genre habits. Do not hold back, do not apologize, and do not provide generic compliments.
+
+You MUST respond ONLY with a raw, valid JSON object in this exact schema:
+{
+  "score": <integer from 0 to 100>,
+  "playlist_roast": "<1-2 sentence merciless overall roast of this user's taste>",
+  "roasts": [
+    {
+      "name": "<exact artist or track name from input>",
+      "roast": "<1-2 sentence sharp, savage roast specifically exposing why the user listens to this>"
+    }
+  ]
+}
+
+Ensure the "roasts" array contains an entry for every artist and track in the user's data. Output strictly JSON.`;
 
 export async function POST(req: Request) {
   try {
@@ -42,7 +55,7 @@ export async function POST(req: Request) {
           },
         ],
         temperature: 0.85,
-        max_tokens: 450,
+        max_tokens: 800,
       }),
     });
 
@@ -61,9 +74,9 @@ export async function POST(req: Request) {
       throw new Error("No content generated from AI provider.");
     }
 
-    // Try parsing if response is structured JSON, or handle as plain text critique
+    // Default values
     let score = 75;
-    let playlistRoast = generatedContent;
+    let playlistRoast = "";
     let roasts: { name: string; roast: string }[] = [];
 
     // Calculate a dynamic basicness score if popularity data was provided in payload
@@ -81,7 +94,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // Try to extract JSON if the model formatted as JSON
+    // Clean markdown code fence if present
     const cleanedText = generatedContent
       .replace(/```json/gi, "")
       .replace(/```/g, "")
@@ -95,14 +108,27 @@ export async function POST(req: Request) {
         if (Array.isArray(parsed.roasts)) roasts = parsed.roasts;
       }
     } catch {
-      // Plain text roast critique
+      // If JSON was partially truncated or formatted differently, extract what we can
+      const scoreMatch = cleanedText.match(/"score":\s*(\d+)/);
+      if (scoreMatch) score = parseInt(scoreMatch[1], 10);
+
+      const playlistRoastMatch = cleanedText.match(
+        /"playlist_roast":\s*"([^"]+)"/
+      );
+      if (playlistRoastMatch) playlistRoast = playlistRoastMatch[1];
+
+      // Extract any roasts objects in roasts array
+      const roastRegex =
+        /\{\s*"name":\s*"([^"]+)",\s*"roast":\s*"([^"]+)"\s*\}/g;
+      let match;
+      while ((match = roastRegex.exec(cleanedText)) !== null) {
+        roasts.push({ name: match[1], roast: match[2] });
+      }
     }
 
     return NextResponse.json({
-      content: generatedContent,
-      roast: generatedContent,
-      playlist_roast: playlistRoast,
       score,
+      playlist_roast: playlistRoast,
       roasts,
       choices: data.choices,
     });
