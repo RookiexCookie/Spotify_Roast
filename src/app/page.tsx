@@ -325,10 +325,10 @@ export default function Home() {
     try {
       const headers = { Authorization: `Bearer ${session.accessToken}` };
       let allItems: any[] = [];
+      let statsPayload: any = {};
 
       if (mode === "user") {
         // --- MODE 1: ROAST CURRENT USER ---
-        // FIX: Replaced "googleusercontent" with actual Spotify API URLs
         const [artistsRes, tracksRes] = await Promise.all([
           fetch(
             "https://api.spotify.com/v1/me/top/artists?time_range=medium_term&limit=5",
@@ -356,16 +356,33 @@ export default function Home() {
 
         const artistItems = artistsData.items.map((item: any) => ({
           name: item.name,
+          genres: item.genres,
+          popularity: item.popularity,
           image: item.images?.[0]?.url || "",
         }));
         const trackItems = tracksData.items.map((item: any) => ({
           name: item.name,
+          artist: item.artists?.[0]?.name || "",
+          album: item.album?.name || "",
           image: item.album?.images?.[0]?.url || "",
         }));
+
         allItems = [...artistItems, ...trackItems];
+
+        statsPayload = {
+          top_artists: artistItems.map((a: any) => ({
+            name: a.name,
+            genres: a.genres,
+            popularity: a.popularity,
+          })),
+          top_tracks: trackItems.map((t: any) => ({
+            title: t.name,
+            artist: t.artist,
+            album: t.album,
+          })),
+        };
       } else {
         // --- MODE 2: ROAST PLAYLIST ---
-        // 1. Extract Playlist ID correctly
         const playlistIdMatch = playlistUrl.match(/playlist\/([a-zA-Z0-9]+)/);
         if (!playlistIdMatch) {
           alert(
@@ -376,7 +393,6 @@ export default function Home() {
         }
         const playlistId = playlistIdMatch[1];
 
-        // 2. FIX: Use the correct Spotify Playlist Endpoint
         const playlistRes = await fetch(
           `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=8`,
           { headers },
@@ -386,48 +402,61 @@ export default function Home() {
 
         const playlistData = await playlistRes.json();
 
-        // 3. Map playlist items
         allItems = playlistData.items.map((item: any) => ({
           name: item.track.name + " by " + item.track.artists[0].name,
+          artist: item.track.artists?.[0]?.name || "",
           image: item.track.album?.images?.[0]?.url || "",
         }));
+
+        statsPayload = {
+          playlist_url: playlistUrl,
+          tracks: allItems.map((t: any) => ({
+            title: t.name,
+            artist: t.artist,
+          })),
+        };
       }
 
       // --- SEND TO AI ---
-      const namesList = allItems.map((item) => item.name).join(", ");
-
       const response = await fetch("/api/roast", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ names: namesList }),
+        body: JSON.stringify(statsPayload),
       });
 
       if (!response.ok) throw new Error("AI Request Failed");
 
       const data = await response.json();
 
-      // FIX: Check if 'roasts' exists before mapping to prevent "data.roasts is undefined" error
-      if (!data || !data.roasts) {
-        throw new Error("AI returned invalid data format");
+      const critique =
+        data.playlist_roast || data.roast || data.content || "";
+
+      // --- MERGE DATA FOR CARDS ---
+      let finalRoast: any[] = [];
+      if (Array.isArray(data.roasts) && data.roasts.length > 0) {
+        finalRoast = data.roasts.map((roastItem: any) => {
+          const original = allItems.find(
+            (item) =>
+              item.name.toLowerCase().includes(roastItem.name?.toLowerCase()) ||
+              roastItem.name?.toLowerCase().includes(item.name.toLowerCase()),
+          );
+          return {
+            name: roastItem.name,
+            roast: roastItem.roast,
+            image: original?.image || "",
+          };
+        });
+      } else {
+        // Fallback cards using all items detected
+        finalRoast = allItems.map((item: any) => ({
+          name: item.name,
+          roast: "Targeted by the music critic in this roast session.",
+          image: item.image || "",
+        }));
       }
 
-      // --- MERGE DATA ---
-      const finalRoast = data.roasts.map((roastItem: any) => {
-        // Fuzzy match logic
-        const original = allItems.find(
-          (item) =>
-            item.name.includes(roastItem.name) ||
-            roastItem.name.includes(item.name),
-        );
-        return {
-          name: roastItem.name,
-          roast: roastItem.roast,
-          image: original?.image || "",
-        };
-      });
-
-      setScore(data.score);
-      setPlaylistRoast(data.playlist_roast);
+      setScore(typeof data.score === "number" ? data.score : 75);
+      setPlaylistRoast(critique);
       setRoastData(finalRoast);
     } catch (error) {
       console.error(error);
@@ -687,11 +716,19 @@ export default function Home() {
                   Basic Score Detected
                 </p>
 
-                {/* NEW: Overall Playlist Roast Summary (Only for Playlist Mode) */}
-                {playlistRoast && mode === "playlist" && (
-                  <div className="max-w-2xl mx-auto mt-8 p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-                    <p className="text-xl md:text-2xl font-medium italic text-gray-200">
-                      "{playlistRoast}"
+                {/* Savage Music Critic Verdict */}
+                {playlistRoast && (
+                  <div className="max-w-3xl mx-auto mt-8 p-8 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl shadow-2xl text-left">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-xl">🔥</span>
+                      <span
+                        className={`text-xs font-extrabold uppercase tracking-widest ${theme.accent}`}
+                      >
+                        CRITIC&apos;S VERDICT
+                      </span>
+                    </div>
+                    <p className="text-lg md:text-xl font-medium leading-relaxed italic text-gray-200 whitespace-pre-line">
+                      &quot;{playlistRoast}&quot;
                     </p>
                   </div>
                 )}
