@@ -328,11 +328,65 @@ Before outputting each roast:
 Only output when every roast feels uncomfortably specific.`;
 }
 
+async function callAi(systemPrompt: string, userContent: string) {
+  const baseUrl = DEFAULT_BASE_URL.replace(/\/+$/, "");
+  const endpoint = `${baseUrl}/chat/completions`;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${API_KEY}`,
+      "ngrok-skip-browser-warning": "true",
+    },
+    body: JSON.stringify({
+      model: MODEL_NAME,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userContent },
+      ],
+      temperature: 0.85,
+      presence_penalty: 0.6,
+      frequency_penalty: 0.6,
+      max_tokens: 1000,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`AI Provider error (${response.status}):`, errorText);
+    throw new Error(`AI status ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const text = data?.choices?.[0]?.message?.content?.trim() || "";
+  const cleanedText = text.replace(/```json/gi, "").replace(/```/g, "").trim();
+
+  let parsed: any = {};
+  try {
+    parsed = JSON.parse(cleanedText);
+  } catch {
+    const scoreMatch = cleanedText.match(/"score":\s*(\d+)/);
+    if (scoreMatch) parsed.score = parseInt(scoreMatch[1], 10);
+
+    const playlistRoastMatch = cleanedText.match(/"playlist_roast":\s*"([^"]+)"/);
+    if (playlistRoastMatch) parsed.playlist_roast = playlistRoastMatch[1];
+
+    parsed.roasts = [];
+    const roastRegex = /\{\s*"name":\s*"([^"]+)",\s*"roast":\s*"([^"]+)"\s*\}/g;
+    let match;
+    while ((match = roastRegex.exec(cleanedText)) !== null) {
+      parsed.roasts.push({ name: match[1], roast: match[2] });
+    }
+  }
+
+  return { parsed, rawChoices: data.choices };
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // Extract flat list of item names from any payload format
     let itemsList: string[] = [];
     if (Array.isArray(body.items)) {
       itemsList = body.items.map((i: any) =>
@@ -341,135 +395,92 @@ export async function POST(req: Request) {
     } else if (Array.isArray(body.names)) {
       itemsList = body.names;
     } else if (typeof body.names === "string") {
-      itemsList = body.names
-        .split(",")
-        .map((s: string) => s.trim())
-        .filter(Boolean);
+      itemsList = body.names.split(",").map((s: string) => s.trim()).filter(Boolean);
     } else if (body.top_artists || body.top_tracks) {
       const a = (body.top_artists || []).map((x: any) => x.name);
       const t = (body.top_tracks || []).map((x: any) => x.title || x.name);
       itemsList = [...a, ...t];
     } else if (typeof body === "object") {
-      itemsList = Object.values(body).filter(
-        (v) => typeof v === "string"
-      ) as string[];
+      itemsList = Object.values(body).filter((v) => typeof v === "string") as string[];
     }
 
-    if (itemsList.length === 0) {
-      itemsList = ["Unknown Music"];
-    }
+    if (itemsList.length === 0) itemsList = ["Unknown Music"];
 
-    const namesFormatted = itemsList.join(", ");
-    const systemPrompt = buildSystemPrompt(namesFormatted);
-
-    const baseUrl = DEFAULT_BASE_URL.replace(/\/+$/, "");
-    const endpoint = `${baseUrl}/chat/completions`;
-
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${API_KEY}`,
-        "ngrok-skip-browser-warning": "true",
-      },
-      body: JSON.stringify({
-        model: MODEL_NAME,
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt,
-          },
-          {
-            role: "user",
-            content: `Roast the listener for these exact items from their Spotify taste:\n${itemsList.map((item, idx) => `${idx + 1}. "${item}"`).join("\n")}`,
-          },
-        ],
-        temperature: 0.85,
-        presence_penalty: 0.6,
-        frequency_penalty: 0.6,
-        max_tokens: 1000,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`AI Provider error (${response.status}):`, errorText);
-      throw new Error(
-        `AI Provider returned status ${response.status}: ${errorText}`
-      );
-    }
-
-    const data = await response.json();
-    const generatedContent = data?.choices?.[0]?.message?.content?.trim() || "";
-
-    if (!generatedContent) {
-      throw new Error("No content generated from AI provider.");
-    }
-
-    // Default values
     let score = 75;
-    let playlistRoast = "";
-    let roasts: { name: string; roast: string }[] = [];
-
-    // Calculate a dynamic basicness score if popularity data was provided in payload
     if (body?.top_artists && Array.isArray(body.top_artists)) {
       const popularities = body.top_artists
-        .map((a: any) =>
-          typeof a.popularity === "number" ? a.popularity : null
-        )
+        .map((a: any) => (typeof a.popularity === "number" ? a.popularity : null))
         .filter((p: any) => p !== null);
       if (popularities.length > 0) {
         score = Math.round(
-          popularities.reduce((a: number, b: number) => a + b, 0) /
-            popularities.length
+          popularities.reduce((a: number, b: number) => a + b, 0) / popularities.length
         );
       }
     }
 
-    // Clean markdown code fence if present
-    const cleanedText = generatedContent
-      .replace(/```json/gi, "")
-      .replace(/```/g, "")
-      .trim();
+    const fullPlaylistNames = itemsList.join(", ");
+    let playlistRoast = "Your music taste has officially left the chat.";
+    let finalRoasts: { name: string; roast: string }[] = [];
 
+    // 1. Get the summary (Playlist level roast)
     try {
-      const parsed = JSON.parse(cleanedText);
-      if (parsed && typeof parsed === "object") {
-        if (typeof parsed.score === "number") score = parsed.score;
-        if (parsed.playlist_roast) playlistRoast = parsed.playlist_roast;
-        if (Array.isArray(parsed.roasts)) roasts = parsed.roasts;
+      const summaryPrompt = buildSystemPrompt(fullPlaylistNames);
+      const summaryUserContent = `Generate ONLY the "playlist_roast" and "score" for this listener. You can leave the "roasts" array empty. Do not roast individual items yet.`;
+      const summaryRes = await callAi(summaryPrompt, summaryUserContent);
+      
+      if (summaryRes.parsed.playlist_roast) {
+        playlistRoast = summaryRes.parsed.playlist_roast;
       }
-    } catch {
-      // If JSON was partially truncated or formatted differently, extract what we can
-      const scoreMatch = cleanedText.match(/"score":\s*(\d+)/);
-      if (scoreMatch) score = parseInt(scoreMatch[1], 10);
+      if (typeof summaryRes.parsed.score === "number") {
+        score = summaryRes.parsed.score;
+      }
+    } catch (err) {
+      console.warn("Failed to fetch summary roast:", err);
+    }
 
-      const playlistRoastMatch = cleanedText.match(
-        /"playlist_roast":\s*"([^"]+)"/
-      );
-      if (playlistRoastMatch) playlistRoast = playlistRoastMatch[1];
+    // 2. Sequentially get roasts for each item one by one
+    for (const item of itemsList) {
+      try {
+        const itemPrompt = buildSystemPrompt(item);
+        const itemUserContent = `Roast the listener specifically for THIS EXACT ITEM:\n1. "${item}"\nReturn JSON with the "roasts" array containing EXACTLY this one item.`;
+        
+        const itemRes = await callAi(itemPrompt, itemUserContent);
+        
+        // Extract the roast specifically for this item
+        const matchingRoast = itemRes.parsed.roasts?.find(
+          (r: any) => r.name?.toLowerCase().includes(item.toLowerCase()) || item.toLowerCase().includes(r.name?.toLowerCase())
+        ) || itemRes.parsed.roasts?.[0]; // fallback to whatever was returned
 
-      // Extract any roasts objects in roasts array
-      const roastRegex =
-        /\{\s*"name":\s*"([^"]+)",\s*"roast":\s*"([^"]+)"\s*\}/g;
-      let match;
-      while ((match = roastRegex.exec(cleanedText)) !== null) {
-        roasts.push({ name: match[1], roast: match[2] });
+        if (matchingRoast?.roast) {
+          finalRoasts.push({
+            name: item,
+            roast: matchingRoast.roast
+          });
+        } else {
+          finalRoasts.push({
+            name: item,
+            roast: `Bhai ${item} sunke tu khud ko kya samajh raha hai? Peak delusion.`
+          });
+        }
+      } catch (err) {
+        console.warn(`Failed to fetch roast for item ${item}:`, err);
+        finalRoasts.push({
+          name: item,
+          roast: `Bhai ${item} sunke tu khud ko kya samajh raha hai? Peak delusion.`
+        });
       }
     }
 
     return NextResponse.json({
       score,
       playlist_roast: playlistRoast,
-      roasts,
-      choices: data.choices,
+      roasts: finalRoasts,
     });
+
   } catch (error: any) {
     console.error("Critical Roast Error:", error);
     return NextResponse.json(
-      {
-        error: error.message || "Failed to generate roast.",
-      },
+      { error: error.message || "Failed to generate roast." },
       { status: 500 }
     );
   }
