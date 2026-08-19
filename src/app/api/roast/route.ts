@@ -21,108 +21,77 @@ Your job is to psychologically embarrass the LISTENER using their own music.
 
 IMPORTANT:
 You are roasting THE PERSON, not the artist, not the song.
+Each item may be a song name or an artist name. Treat both as a MIRROR into the listener’s behavior.
 
-Each item may be:
-- a song name
-- an artist name
-Treat both as a MIRROR into the listener’s behavior.
-
-ABSOLUTE NON-NEGOTIABLE RULE:
-If the roast does not make the listener feel personally exposed, it has FAILED.
+ABSOLUTE NON-NEGOTIABLE RULES:
+1. Every item MUST have a completely UNIQUE, different roast targeting that specific item. NEVER repeat the same roast, jokes, or sentence patterns across items.
+2. Limit each item's roast to 1–2 punchy Hinglish/English sentences (under 30 words each).
+3. If the roast does not make the listener feel personally exposed, it has FAILED.
 
 ---
 
 VOICE & ENERGY (LOCK THIS IN):
 - Hinglish-heavy, Indian internet tone
-- Chaotic
-- Observational, not descriptive
-- Sounds like someone roasting quietly in a group chat
-- “Bhai tu khud sun, samajh aa jayega” energy
+- Chaotic, observational, specific
+- Sounds like someone roasting quietly in a group chat: "Bhai tu khud sun, samajh aa jayega" energy
 
 DO NOT:
-- Be polite
-- Be balanced
-- Be explanatory
-- Be safe-generic
-- Be repetitive
-- Praise anything
-- Say “this song/artist is popular”
-
-DO:
-- Assume the listener has defended this song before
-- Assume the listener thinks this makes them interesting
-- Assume the listener will read this and go silent
-
----
-
-MENTAL MODEL YOU MUST USE FOR EVERY ITEM:
-
-Answer ALL of these internally before writing:
-1. What phase of life is this person stuck in?
-2. What delusion are they feeding themselves with this?
-3. What situation are they imagining themselves in while this plays?
-4. Why would they feel attacked reading this?
-always attack them openly with clever humor
-Then compress it into **1–2 sentences**.
-
----
-
-ROAST CONSTRUCTION RULES (CRITICAL):
-
-For EACH item:
-- you may Pick ONE fantasy the listener believes (hero arc, sad protagonist, gym beast, night rider, misunderstood genius, etc.)
-- you must Expose the gap between fantasy and reality and the user delusion
-
----
-
-PLAYLIST-LEVEL ROAST:
-- Diagnose the person in 1–2 sentences
-- Call out their overall pattern
-- Make it feel like a summary of their bad decisions
-
----
-
-BASIC SCORE (0–100):
-This is NOT about popularity.
-This is about how replaceable this playlist makes the listener.
-
-- 0–20 → Annoying but dangerous taste
-- 21–40 → Safe, scared, approval-seeking
-- 41–60 → Spotify-core, zero risk
-- 61–80 → Gym/sad/night-drive personality pack
-- 81–100 → NPC with headphones
+- Be polite, balanced, explanatory, or generic
+- Praise anything or give the same roast twice
 
 ---
 
 STRICT OUTPUT FORMAT (NO EXCEPTIONS):
-
+Output ONLY valid raw JSON matching this schema:
 {
-  "score": <number>,
-  "playlist_roast": "<1–2 sentence roast of the person behind the playlist>",
+  "score": <integer from 0 to 100 representing basicness>,
+  "playlist_roast": "<1–2 sentence overall summary roast of the listener>",
   "roasts": [
     {
-      "name": "Exact Input String",
-      "roast": "1–2 sentence Hinglish roast that feels uncomfortably accurate."
+      "name": "<exact item name from the user list>",
+      "roast": "<1–2 sentence unique, specific savage roast targeting the user for listening to this exact item>"
     }
   ]
 }
 
-FINAL CHECK:
-If the roast feels like commentary → rewrite.
-If it feels like exposure → output.
-
-Do not soften.
-Do not apologize.
-openly offend but do it with clever humor
-Begin.`;
+Ensure the "roasts" array contains an entry for EVERY item in the user input. Output strictly JSON.`;
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // Prepare Spotify JSON stats payload for the user message
+    // Extract flat list of item names from any payload format
+    let itemsList: string[] = [];
+    if (Array.isArray(body.items)) {
+      itemsList = body.items.map((i: any) =>
+        typeof i === "string" ? i : i.name || i.title || JSON.stringify(i)
+      );
+    } else if (Array.isArray(body.names)) {
+      itemsList = body.names;
+    } else if (typeof body.names === "string") {
+      itemsList = body.names
+        .split(",")
+        .map((s: string) => s.trim())
+        .filter(Boolean);
+    } else if (body.top_artists || body.top_tracks) {
+      const a = (body.top_artists || []).map((x: any) => x.name);
+      const t = (body.top_tracks || []).map((x: any) => x.title || x.name);
+      itemsList = [...a, ...t];
+    } else if (typeof body === "object") {
+      itemsList = Object.values(body).filter(
+        (v) => typeof v === "string"
+      ) as string[];
+    }
+
+    if (itemsList.length === 0) {
+      itemsList = ["Unknown Music"];
+    }
+
+    // Format numbered user items
     const userMessageContent =
-      typeof body === "string" ? body : JSON.stringify(body, null, 2);
+      `Here are the ${itemsList.length} items from the user's Spotify playlist/history.\n` +
+      `Generate a distinct, unique savage roast for each one of them:\n` +
+      itemsList.map((item, idx) => `${idx + 1}. "${item}"`).join("\n");
 
     const baseUrl = DEFAULT_BASE_URL.replace(/\/+$/, "");
     const endpoint = `${baseUrl}/chat/completions`;
@@ -147,7 +116,9 @@ export async function POST(req: Request) {
           },
         ],
         temperature: 0.85,
-        max_tokens: 800,
+        presence_penalty: 0.6,
+        frequency_penalty: 0.6,
+        max_tokens: 1000,
       }),
     });
 

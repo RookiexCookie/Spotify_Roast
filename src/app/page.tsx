@@ -370,6 +370,8 @@ export default function Home() {
         allItems = [...artistItems, ...trackItems];
 
         statsPayload = {
+          items: allItems.map((a: any) => a.name),
+          names: allItems.map((a: any) => a.name).join(", "),
           top_artists: artistItems.map((a: any) => ({
             name: a.name,
             genres: a.genres,
@@ -409,6 +411,8 @@ export default function Home() {
         }));
 
         statsPayload = {
+          items: allItems.map((a: any) => a.name),
+          names: allItems.map((a: any) => a.name).join(", "),
           playlist_url: playlistUrl,
           tracks: allItems.map((t: any) => ({
             title: t.name,
@@ -431,35 +435,52 @@ export default function Home() {
       const critique =
         data.playlist_roast || data.roast || data.content || "";
 
-      // --- MERGE DATA FOR CARDS ---
+      // --- MERGE DATA FOR CARDS (Guaranteed Unique per Card) ---
       let finalRoast: any[] = [];
       if (Array.isArray(data.roasts) && data.roasts.length > 0) {
+        const usedRoasts = new Set<string>();
+
         finalRoast = allItems.map((item) => {
-          const match = data.roasts.find(
-            (r: any) =>
-              item.name.toLowerCase().includes(r.name?.toLowerCase()) ||
-              r.name?.toLowerCase().includes(item.name.toLowerCase()) ||
-              (item.artist &&
-                r.name?.toLowerCase().includes(item.artist?.toLowerCase())) ||
-              (item.artist &&
-                item.artist?.toLowerCase().includes(r.name?.toLowerCase())),
-          );
+          // Find unmatched roast from AI
+          const match = data.roasts.find((r: any) => {
+            if (!r?.roast || usedRoasts.has(r.roast)) return false;
+            const rName = r.name?.toLowerCase() || "";
+            const iName = item.name?.toLowerCase() || "";
+            const iArtist = item.artist?.toLowerCase() || "";
+            return (
+              iName.includes(rName) ||
+              rName.includes(iName) ||
+              (iArtist && (iArtist.includes(rName) || rName.includes(iArtist)))
+            );
+          });
+
+          let roastText = match?.roast;
+          if (roastText) {
+            usedRoasts.add(roastText);
+          } else {
+            // Pick any remaining unused roast
+            const unused = data.roasts.find(
+              (r: any) => r?.roast && !usedRoasts.has(r.roast),
+            );
+            if (unused) {
+              roastText = unused.roast;
+              usedRoasts.add(roastText);
+            } else {
+              roastText = `Bhai ${item.name} sunke tu khud ko kya samajh raha hai? Peak delusion.`;
+            }
+          }
+
           return {
             name: item.name,
-            roast:
-              match?.roast ||
-              data.playlist_roast ||
-              "Your music taste has officially left the chat.",
+            roast: roastText,
             image: item.image || "",
           };
         });
       } else {
-        // Fallback cards using all items detected
+        // Fallback with unique roasts for each card
         finalRoast = allItems.map((item: any) => ({
           name: item.name,
-          roast:
-            data.playlist_roast ||
-            "Your music taste has officially left the chat.",
+          roast: `Bhai ${item.name} loop pe chala ke imaginary scenarios me jeena band kar.`,
           image: item.image || "",
         }));
       }
